@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Russia vs Ukraine — Military-Age Male Manpower Model</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+  :root{
+    --ru:#d1495b; --ua:#0072b2; --bg:#0f1115; --panel:#171a21; --ink:#e8eaed;
+    --muted:#9aa0ab; --grid:#262b35; --accent:#e0a458;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.45;font-size:15px}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 22px 80px}
+  h1{font-size:26px;margin:0 0 4px;letter-spacing:-.3px}
+  h2{font-size:17px;margin:28px 0 10px;color:var(--accent);font-weight:600}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 18px}
+  .layout{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start}
+  @media(max-width:880px){.layout{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--grid);border-radius:12px;padding:16px 18px}
+  .ctrl{margin:0 0 16px}
+  .ctrl label{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:5px}
+  .ctrl label b{color:var(--ink);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
+  .seg{display:flex;gap:6px;margin:2px 0 14px}
+  .seg button{flex:1;background:#10131a;border:1px solid var(--grid);color:var(--muted);
+    padding:7px 4px;border-radius:8px;cursor:pointer;font-size:13px}
+  .seg button.on{background:var(--accent);color:#1a1a1a;border-color:var(--accent);font-weight:600}
+  .reset{width:100%;background:#10131a;border:1px solid var(--grid);color:var(--ink);
+    padding:9px;border-radius:8px;cursor:pointer;margin-top:4px}
+  .reset:hover{border-color:var(--accent)}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:6px 0 4px}
+  @media(max-width:880px){.cards{grid-template-columns:repeat(2,1fr)}}
+  .card{background:var(--panel);border:1px solid var(--grid);border-radius:10px;padding:12px 14px}
+  .card .k{font-size:12px;color:var(--muted)}
+  .card .v{font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:3px}
+  .card .v.ru{color:var(--ru)} .card .v.ua{color:var(--ua)}
+  .note{color:var(--muted);font-size:12.5px}
+  .note b{color:var(--ink)}
+  a{color:var(--accent)}
+  .legend-hint{font-size:12.5px;color:var(--muted);margin:4px 0 0}
+  details{margin-top:10px}
+  summary{cursor:pointer;color:var(--accent);font-size:13.5px}
+  table.src{border-collapse:collapse;font-size:12.5px;margin-top:8px;width:100%}
+  table.src td{border-top:1px solid var(--grid);padding:5px 6px;vertical-align:top}
+  hr{border:none;border-top:1px solid var(--grid);margin:26px 0}
+  .knockout{margin-top:12px;padding:12px 14px;border-radius:9px;border:1px solid var(--grid);
+    background:#10131a;font-size:13.5px}
+  .knockout .hd{font-weight:600;color:var(--accent);margin-bottom:5px}
+  .knockout b.ru{color:var(--ru)} .knockout b.ua{color:var(--ua)}
+  .verdict{font-weight:600;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Military-Age Male Manpower: Russia vs Ukraine</h1>
+  <p class="sub">A cohort projection that decomposes the change in each country's military-age male population into its three drivers —
+  <b style="color:var(--accent)">aging</b> (cohorts entering at the bottom vs. exiting at the top),
+  <b style="color:var(--accent)">migration</b>, and <b style="color:var(--accent)">combat deaths</b>.
+  Base year structure: UN World Population Prospects 2024. Every assumption is a slider — drag to test scenarios.</p>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="layout">
+    <div class="panel">
+      <div style="font-weight:600;margin-bottom:12px">Assumptions</div>
+
+      <div class="ctrl">
+        <label>Fighting-age band — lower <b><span id="vMin"></span></b></label>
+        <input type="range" id="minAge" min="16" max="25" step="1" value="18">
+      </div>
+      <div class="ctrl">
+        <label>Fighting-age band — upper <b><span id="vMax"></span></b></label>
+        <input type="range" id="maxAge" min="35" max="60" step="1" value="44">
+      </div>
+      <div class="ctrl">
+        <label>War ends (combat stops after) <b><span id="vWar"></span></b></label>
+        <input type="range" id="warEnd" min="2026" max="2045" step="1" value="2028">
+      </div>
+
+      <div class="ctrl">
+        <label>🇷🇺 Russia combat deaths / yr <b><span id="vCRU"></span></b></label>
+        <input type="range" id="combatRU" min="0" max="200000" step="5000" value="100000">
+      </div>
+      <div class="ctrl">
+        <label>🇺🇦 Ukraine combat deaths / yr <b><span id="vCUA"></span></b></label>
+        <input type="range" id="combatUA" min="0" max="120000" step="2500" value="35000">
+      </div>
+
+      <div class="ctrl">
+        <label>🇷🇺 Russia net out-migration / yr <b><span id="vMRU"></span></b></label>
+        <input type="range" id="migRU" min="-200000" max="400000" step="10000" value="50000">
+      </div>
+      <div class="ctrl">
+        <label>🇺🇦 Ukraine net out-migration / yr <b><span id="vMUA"></span></b></label>
+        <input type="range" id="migUA" min="-400000" max="300000" step="10000" value="20000">
+      </div>
+
+      <div class="ctrl">
+        <label>Non-combat mortality (×baseline) <b><span id="vMort"></span></b></label>
+        <input type="range" id="mort" min="0.5" max="2" step="0.1" value="1">
+      </div>
+      <div class="ctrl">
+        <label>Future fertility vs 2024 (post-2042) <b><span id="vFert"></span></b></label>
+        <input type="range" id="fert" min="0.5" max="1.1" step="0.05" value="0.9">
+      </div>
+
+      <button class="reset" id="reset">Reset to defaults</button>
+
+      <details>
+        <summary>Notes &amp; caveats</summary>
+        <div class="note" style="margin-top:8px">
+          <p>• Negative migration = <b>net return</b> (e.g. refugees / émigrés coming home — likely once the war ends).</p>
+          <p>• Pool = <b>living men</b> in the age band. Combat <b>wounded</b> who survive stay in the pool (still alive), so they are <em>not</em> subtracted — even though many are removed from the fight. Toggle this view of "lost to the fight" by raising combat deaths to approximate killed + permanently disabled.</p>
+          <p>• Entrants through 2042 are people <b>already born</b> (aged 0–17 in 2024) — that part of the decline is locked in regardless of policy. Only 2043+ depends on the fertility slider.</p>
+          <p>• Attrition is applied proportionally across ages within the band; combat skews younger in reality.</p>
+          <p>• Ukraine's 2024 base (37.9M) is a WPP estimate; ~5–6M refugees abroad mean the in-country pool may be smaller than shown.</p>
+        </div>
+      </details>
+    </div>
+
+    <div>
+      <div class="panel"><div id="mainChart" style="height:430px"></div>
+        <p class="legend-hint">Solid = full scenario (demographics + migration + combat). Dashed = same world with <b>no combat</b>. The gap between them is the war's marginal toll on the living male pool.</p>
+        <div id="knockout" class="knockout"></div>
+      </div>
+
+      <h2>Annual change, decomposed</h2>
+      <div class="seg" id="cc">
+        <button data-c="RU" class="on">🇷🇺 Russia</button>
+        <button data-c="UA">🇺🇦 Ukraine</button>
+      </div>
+      <div class="panel"><div id="decompChart" style="height:380px"></div></div>
+    </div>
+  </div>
+
+  <hr/>
+  <h2>What the defaults are built on</h2>
+  <table class="src">
+    <tr><td><b>Age structure</b></td><td>UN World Population Prospects 2024, single-year cohorts interpolated from 5-year male bands (via populationpyramid.net).</td></tr>
+    <tr><td><b>Russia combat deaths</b></td><td>Mediazona + Meduza + BBC Russian probate-registry method: <b>~352,000</b> Russian men killed end-2022→end-2025; 2025 the deadliest year. Implies a recent run-rate near 100k/yr (default).</td></tr>
+    <tr><td><b>Ukraine combat deaths</b></td><td>Estimates diverge widely: Zelensky cited ~46k (2024) then higher; CSIS put deaths at 60k–140k. Default 35k/yr is a mid forward run-rate; drag to your prior.</td></tr>
+    <tr><td><b>Russia migration</b></td><td>2022 mobilization exodus ≈ 650k–900k left, ~650k still abroad (The Bell; demographer A. Raksha). Forward net flow is small and could reverse — default +50k/yr out.</td></tr>
+    <tr><td><b>Ukraine migration</b></td><td>Martial law bars men 18–60 from leaving, so wartime net outflow of military-age men is small; a large <b>return</b> is plausible post-war (set slider negative).</td></tr>
+  </table>
+  <p class="note" style="margin-top:14px">Sources:
+    <a href="https://en.zona.media/article/2026/05/09/losses" target="_blank">Mediazona/Meduza 352k</a> ·
+    <a href="https://meduza.io/en/feature/2025/08/29/the-deadliest-year-yet" target="_blank">Meduza 200k+</a> ·
+    <a href="https://en.wikipedia.org/wiki/Casualties_of_the_Russo-Ukrainian_war" target="_blank">Casualties (overview)</a> ·
+    <a href="https://en.thebell.io/russias-650-000-wartime-emigres/" target="_blank">The Bell émigrés</a> ·
+    <a href="https://en.wikipedia.org/wiki/Russian_emigration_during_the_Russo-Ukrainian_war_(2022%E2%80%93present)" target="_blank">Emigration (overview)</a> ·
+    <a href="https://population.un.org/wpp/" target="_blank">UN WPP 2024</a> ·
+    <a href="https://www.russiamatters.org/analysis/russian-military-facing-looming-demography-crisis" target="_blank">Russia demography crisis</a>.
+    Forward projection from a 2024 base; not a forecast — a transparent calculator. Casualty figures are contested and unverifiable; treat outputs as scenario arithmetic.</p>
+</div>
+
+<script>
+// ---- UN WPP 2024 male population, 5-year bands (ages 0-4 ... 100+) ----
+const BANDS = {
+  RU:[3546490,4587725,4716792,4060571,3695263,3698549,5043324,6354235,5651019,4965318,4436200,3818980,4195118,3484287,2449762,1268566,612644,453652,129507,34419,2530],
+  UA:[647376,921527,1137041,1053847,894044,1008999,1329819,1661716,1555532,1324067,1188865,1180430,1244112,974535,682767,351501,224408,162959,41801,11712,985]
+};
+const BASE_YEAR=2024, END_YEAR=2045;
+const MORT_BASE={RU:0.005, UA:0.004};   // annual non-combat death prob, ages ~18-44
+const COL={RU:'#d1495b', UA:'#0072b2'};
+
+// expand 5-year bands -> single year of age 0..100
+function singleYear(bands){
+  const a=new Array(101).fill(0);
+  for(let b=0;b<20;b++){ const per=bands[b]/5; for(let k=0;k<5;k++) a[b*5+k]=per; }
+  a[100]=bands[20];
+  return a;
+}
+const SY={RU:singleYear(BANDS.RU), UA:singleYear(BANDS.UA)};
+
+function P(){
+  return {
+    minAge:+minAge.value, maxAge:+maxAge.value, warEnd:+warEnd.value,
+    combat:{RU:+combatRU.value, UA:+combatUA.value},
+    mig:{RU:+migRU.value, UA:+migUA.value},
+    mort:+mort.value, fert:+fert.value
+  };
+}
+
+function simulate(c,p,war){
+  const pop=SY[c].slice();
+  const births0=pop[0];
+  const years=[], pool=[], comp=[]; // comp: {agein,ageout,combat,mig,noncombat,net}
+  for(let y=BASE_YEAR;y<=END_YEAR;y++){
+    let tot=0; for(let a=p.minAge;a<=p.maxAge;a++) tot+=pop[a];
+    years.push(y); pool.push(tot);
+    // flows for the year y -> y+1
+    const agein=pop[p.minAge-1];
+    const warOn = war && (y<p.warEnd);
+    const combat = warOn ? p.combat[c] : 0;
+    const migr = p.mig[c];
+    const noncombat = tot*MORT_BASE[c]*p.mort;
+    const attr = combat+migr+noncombat;
+    const factor = tot>0 ? Math.max(0,(tot-attr))/tot : 0;
+    for(let a=p.minAge;a<=p.maxAge;a++) pop[a]*=factor;
+    const ageout = pop[p.maxAge]; // post-attrition leaver
+    // shift everyone up one year of age
+    for(let a=100;a>0;a--) pop[a]=pop[a-1];
+    pop[0]= births0*p.fert;
+    comp.push({agein:agein, ageout:-ageout,
+               combat:-(combat*factor), mig:-(migr*factor), noncombat:-(noncombat*factor),
+               net: agein-ageout-(attr*factor)});
+  }
+  return {years,pool,comp};
+}
+
+const fmt=n=>{const s=n<0?'-':'';n=Math.abs(n);
+  if(n>=1e6) return s+(n/1e6).toFixed(2)+'M';
+  if(n>=1e3) return s+(n/1e3).toFixed(0)+'k'; return s+Math.round(n);};
+const fmtS=n=>(n>0?'+':'')+fmt(n);
+
+let curC='RU';
+
+function render(){
+  const p=P();
+  // value labels
+  vMin.textContent=p.minAge; vMax.textContent=p.maxAge; vWar.textContent=p.warEnd;
+  vCRU.textContent=fmt(p.combat.RU); vCUA.textContent=fmt(p.combat.UA);
+  vMRU.textContent=fmtS(p.mig.RU); vMUA.textContent=fmtS(p.mig.UA);
+  vMort.textContent=p.mort.toFixed(1)+'×'; vFert.textContent=Math.round(p.fert*100)+'%';
+
+  const ruW=simulate('RU',p,true), ruN=simulate('RU',p,false);
+  const uaW=simulate('UA',p,true), uaN=simulate('UA',p,false);
+
+  // ---- main chart ----
+  const mk=(r,c,dash,name,show)=>({x:r.years,y:r.pool,name,mode:'lines',
+    line:{color:c,width:dash?2:3.2,dash:dash?'dot':'solid'},
+    legendgroup:name, showlegend:show,
+    hovertemplate:'%{x}<br>'+name+': %{y:,.0f}<extra></extra>'});
+  Plotly.react('mainChart',[
+    mk(ruW,COL.RU,false,'Russia',true),
+    mk(ruN,COL.RU,true,'Russia — no combat',true),
+    mk(uaW,COL.UA,false,'Ukraine',true),
+    mk(uaN,COL.UA,true,'Ukraine — no combat',true)
+  ],{
+    margin:{l:60,r:16,t:30,b:36}, paper_bgcolor:'#171a21', plot_bgcolor:'#171a21',
+    font:{color:'#e8eaed',size:12.5},
+    title:{text:'Living male population, ages '+p.minAge+'–'+p.maxAge,font:{size:14},x:0,xanchor:'left'},
+    xaxis:{gridcolor:'#262b35',dtick:2},
+    yaxis:{gridcolor:'#262b35',rangemode:'tozero',tickformat:'.2s'},
+    legend:{orientation:'h',y:-0.16,font:{size:11.5}},
+    shapes:[{type:'line',x0:2026,x1:2026,y0:0,y1:1,yref:'paper',
+      line:{color:'#555',width:1,dash:'dot'}}],
+    annotations:[{x:2026,y:1,yref:'paper',text:'today',showarrow:false,
+      font:{size:10,color:'#888'},yshift:8}]
+  },{displayModeBar:false,responsive:true});
+
+  // ---- decomposition (selected country) ----
+  const d = curC==='RU'?ruW:uaW;
+  const yrs=d.years.slice(0,-0); // all
+  const series=[
+    {key:'agein', name:'Aging in (+)', color:'#3a9b6e'},
+    {key:'ageout',name:'Aging out (−)', color:'#7a5cc4'},
+    {key:'combat',name:'Combat deaths (−)', color:'#d1495b'},
+    {key:'mig',   name:'Net migration', color:'#e0a458'},
+    {key:'noncombat',name:'Non-combat mortality (−)', color:'#888'}
+  ];
+  const bars=series.map(s=>({x:yrs,y:d.comp.map(o=>o[s.key]),name:s.name,type:'bar',
+    marker:{color:s.color}, hovertemplate:'%{x}<br>'+s.name+': %{y:,.0f}<extra></extra>'}));
+  bars.push({x:yrs,y:d.comp.map(o=>o.net),name:'Net change',mode:'lines+markers',
+    type:'scatter',line:{color:'#fff',width:2.5},marker:{size:4},
+    hovertemplate:'%{x}<br>Net: %{y:,.0f}<extra></extra>'});
+  Plotly.react('decompChart',bars,{
+    barmode:'relative', margin:{l:60,r:16,t:30,b:36},
+    paper_bgcolor:'#171a21', plot_bgcolor:'#171a21', font:{color:'#e8eaed',size:12.5},
+    title:{text:(curC==='RU'?'Russia':'Ukraine')+' — annual change in the '+p.minAge+'–'+p.maxAge+' male pool',font:{size:14},x:0,xanchor:'left'},
+    xaxis:{gridcolor:'#262b35',dtick:2},
+    yaxis:{gridcolor:'#262b35',zerolinecolor:'#4a4a4a',tickformat:'.2s'},
+    legend:{orientation:'h',y:-0.18,font:{size:11}}
+  },{displayModeBar:false,responsive:true});
+
+  // ---- cards ----
+  const endRU=ruW.pool[ruW.pool.length-1], endUA=uaW.pool[uaW.pool.length-1];
+  const dropRU=(ruW.pool[0]-endRU)/ruW.pool[0]*100, dropUA=(uaW.pool[0]-endUA)/uaW.pool[0]*100;
+  // cumulative combat deaths over window (permanent population loss)
+  const cumC=(r)=>r.comp.reduce((s,o)=>s-o.combat,0);
+  const warTollRU=cumC(ruW), warTollUA=cumC(uaW);
+  const ratio0=(ruW.pool[0]/uaW.pool[0]), ratioE=(endRU/endUA);
+  cards.innerHTML=`
+    <div class="card"><div class="k">🇷🇺 RU pool ${BASE_YEAR}→${END_YEAR}</div>
+      <div class="v ru">${fmt(ruW.pool[0])} → ${fmt(endRU)}</div>
+      <div class="note">${dropRU.toFixed(0)}% decline</div></div>
+    <div class="card"><div class="k">🇺🇦 UA pool ${BASE_YEAR}→${END_YEAR}</div>
+      <div class="v ua">${fmt(uaW.pool[0])} → ${fmt(endUA)}</div>
+      <div class="note">${dropUA.toFixed(0)}% decline</div></div>
+    <div class="card"><div class="k">Manpower ratio RU:UA</div>
+      <div class="v">${ratio0.toFixed(1)}× → ${ratioE.toFixed(1)}×</div>
+      <div class="note">start → ${END_YEAR}</div></div>
+    <div class="card"><div class="k">Cumulative combat deaths</div>
+      <div class="v" style="font-size:17px"><span class="ru">${fmt(warTollRU)}</span> / <span class="ua">${fmt(warTollUA)}</span></div>
+      <div class="note">RU / UA, ${BASE_YEAR}→war's end</div></div>`;
+
+  // ---- attrition / "knockout" verdict ----
+  const Rpool = uaW.pool[0]>0 ? ruW.pool[0]/uaW.pool[0] : Infinity;
+  const Rex   = p.combat.UA>0 ? p.combat.RU/p.combat.UA : Infinity;
+  const depRU = ruW.pool[0]>0 ? p.combat.RU/ruW.pool[0]*100 : 0;
+  const depUA = uaW.pool[0]>0 ? p.combat.UA/uaW.pool[0]*100 : 0;
+  let verdict, vcol;
+  if(p.combat.RU===0 && p.combat.UA===0){
+    verdict='No combat — attrition is purely demographic.'; vcol='var(--muted)';
+  } else if(Rex>=Rpool){
+    verdict='✓ Ukraine is depleting Russia’s pool faster — attrition favors Ukraine.'; vcol='var(--ua)';
+  } else {
+    verdict='✕ Russia’s pool outlasts Ukraine’s — in a fight to exhaustion, attrition favors Russia.'; vcol='var(--ru)';
+  }
+  document.getElementById('knockout').innerHTML=
+    `<div class="hd">If the war never ends (set "war ends" to 2045)</div>`+
+    `To deplete Russia’s pool at the same <i>relative</i> rate, Ukraine must inflict the pool ratio of `+
+    `<b>${isFinite(Rpool)?Rpool.toFixed(1):'∞'}:1</b>. Your sliders imply an exchange ratio of `+
+    `<b>${isFinite(Rex)?Rex.toFixed(1):'∞'}:1</b> (Russians lost per Ukrainian). `+
+    `From combat alone, <b class="ru">Russia’s pool falls ${depRU.toFixed(2)}%/yr</b> vs `+
+    `<b class="ua">Ukraine’s ${depUA.toFixed(2)}%/yr</b>.`+
+    `<div class="verdict" style="color:${vcol}">${verdict}</div>`;
+}
+
+// wire up
+document.querySelectorAll('input[type=range]').forEach(el=>el.addEventListener('input',render));
+document.querySelectorAll('#cc button').forEach(b=>b.addEventListener('click',()=>{
+  curC=b.dataset.c;
+  document.querySelectorAll('#cc button').forEach(x=>x.classList.toggle('on',x===b));
+  render();
+}));
+const DEF={minAge:18,maxAge:44,warEnd:2028,combatRU:100000,combatUA:35000,migRU:50000,migUA:20000,mort:1,fert:0.9};
+document.getElementById('reset').addEventListener('click',()=>{
+  for(const k in DEF) document.getElementById(k).value=DEF[k]; render();
+});
+render();
+</script>
+</body>
+</html>
