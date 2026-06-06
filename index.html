@@ -255,7 +255,7 @@ function render(){
 
   // ---- decomposition (selected country) ----
   const d = curC==='RU'?ruW:uaW;
-  const yrs=d.years.slice(0,-0); // all
+  const yrs=d.years; // all years
   const series=[
     {key:'agein', name:'Aging in (+)', color:'#3a9b6e'},
     {key:'ageout',name:'Aging out (−)', color:'#7a5cc4'},
